@@ -1847,8 +1847,14 @@
         }
 
         // 4. Redirect
+        // Försök öppna Apple Music-appen
         let appUrl = url.replace("https://", "music://");
         window.location.href = appUrl;
+
+        // Fallback efter 800 ms om appen inte öppnas
+        setTimeout(() => {
+        window.location.href = url;
+        }, 800);
 
       } catch (err) {
         log("Fel: " + err.message, "error");
