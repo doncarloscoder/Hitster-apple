@@ -1,4 +1,5 @@
 let mapping = {};
+let scanner;
 
 fetch("mapping.json")
   .then(response => response.json())
@@ -7,38 +8,51 @@ fetch("mapping.json")
   });
 
 function extractCardNumber(url) {
-  // Exempel:
-  // https://www.hitstergame.com/se/aaaa0034/00043
   const parts = url.split("/");
   const lastPart = parts[parts.length - 1];
   return parseInt(lastPart, 10).toString();
 }
 
-function onScanSuccess(decodedText) {
+function startScanner() {
   const status = document.getElementById("status");
+  status.innerText = "Startar kamera...";
 
-  const cardNumber = extractCardNumber(decodedText);
+  scanner = new Html5Qrcode("reader");
 
-  status.innerText = `Kort: ${cardNumber}`;
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 15,
+      qrbox: { width: 250, height: 250 }
+    },
+    (decodedText) => {
+      status.innerText = "QR upptäckt!";
+      scanner.stop();
+
+      const cardNumber = extractCardNumber(decodedText);
+
+      status.innerText = "Kort: " + cardNumber;
+
+      if (mapping[cardNumber]) {
+        window.location.href = mapping[cardNumber];
+      } else {
+        status.innerText = "Kort saknas i mapping.";
+      }
+    },
+    (errorMessage) => {
+      // Tyst fel (normalt när den söker)
+    }
+  ).catch(err => {
+    status.innerText = "Kunde inte starta kameran.";
+  });
+}
+
+function manualLookup() {
+  const cardNumber = document.getElementById("manualInput").value;
 
   if (mapping[cardNumber]) {
     window.location.href = mapping[cardNumber];
   } else {
-    status.innerText = "Kortet finns inte i mapping.json";
+    alert("Kortet finns inte.");
   }
 }
-
-const html5QrCode = new Html5Qrcode("reader");
-
-Html5Qrcode.getCameras().then(devices => {
-  if (devices && devices.length) {
-    html5QrCode.start(
-      { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: 250
-      },
-      onScanSuccess
-    );
-  }
-});
