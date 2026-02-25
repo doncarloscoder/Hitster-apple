@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hitster Apple</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: #111;
+      color: white;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+    }
+
+    button {
+      padding: 15px 25px;
+      font-size: 18px;
+      border-radius: 10px;
+      border: none;
+      background: #ff2d55;
+      color: white;
+      margin-top: 20px;
+    }
+
+    .status {
+      margin-top: 15px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎵 Hitster Apple</h1>
+
+  <div id="reader"></div>
+
+  <div class="status" id="status">
+    Skanna ett kort
+  </div>
+
+  <script src="app.js"></script>
+
+</body>
+</html>
