@@ -1,72 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="sv">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Hitster Apple</title>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+
 <style>
 body {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #111;
-  color: white;
-  text-align: center;
-  padding: 40px;
+  background:#111;
+  color:white;
+  text-align:center;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  padding:20px;
+}
+video {
+  width:100%;
+  max-width:400px;
+  border-radius:12px;
+  margin-top:20px;
 }
 button {
-  padding: 15px 25px;
-  font-size: 18px;
-  border-radius: 12px;
-  border: none;
-  background: #ff2d55;
-  color: white;
+  padding:14px 24px;
+  font-size:18px;
+  border-radius:12px;
+  border:none;
+  background:#ff2d55;
+  color:white;
+  margin-top:15px;
 }
-input {
-  padding: 10px;
-  margin-top: 15px;
-  border-radius: 8px;
-  border: none;
-  font-size: 16px;
+.status {
+  margin-top:15px;
+  min-height:24px;
 }
 </style>
 </head>
+
 <body>
 
 <h1>🎵 Hitster Apple</h1>
 
-<p id="status">Redo</p>
+<button onclick="startScanner()">Starta scanning</button>
 
-<input id="manualInput" placeholder="Kortnummer..." />
-<br><br>
-<button onclick="manualLookup()">Spela</button>
+<br>
+<video id="video" playsinline></video>
+<div class="status" id="status">Redo</div>
 
 <script>
 
 let mapping = {};
+let codeReader;
+let stream;
+
+const video = document.getElementById('video');
+const statusEl = document.getElementById('status');
 
 fetch("mapping.json")
   .then(r => r.json())
-  .then(data => {
-    mapping = data;
-    checkUrl();
-  });
+  .then(data => mapping = data);
 
-function getCardFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("card");
+function extractCardNumber(text) {
+  const matches = text.match(/\d+/g);
+  return matches ? parseInt(matches[matches.length - 1], 10).toString() : null;
 }
 
-function checkUrl() {
-  const card = getCardFromUrl();
-  if (card && mapping[card]) {
-    window.location.href = mapping[card];
+async function startScanner() {
+  statusEl.innerText = "Startar kamera...";
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        focusMode: "continuous"
+      }
+    });
+
+    video.srcObject = stream;
+
+    codeReader = new ZXing.BrowserQRCodeReader();
+
+    statusEl.innerText = "Kamera aktiv – håll kortet stilla";
+
+    codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
+      if (result) {
+        const text = result.getText();
+        const cardNumber = extractCardNumber(text);
+
+        if (!cardNumber) return;
+
+        statusEl.innerText = "Kort: " + cardNumber;
+
+        stopScanner();
+
+        if (mapping[cardNumber]) {
+          window.location.href = mapping[cardNumber];
+        } else {
+          statusEl.innerText = "Kort saknas i mapping.";
+        }
+      }
+    });
+
+  } catch (err) {
+    statusEl.innerText = "Kamera-fel: " + err.message;
+    console.error(err);
   }
 }
 
-function manualLookup() {
-  const card = document.getElementById("manualInput").value.trim();
-  if (mapping[card]) {
-    window.location.href = mapping[card];
-  } else {
-    alert("Kortet finns inte.");
+function stopScanner() {
+  if (codeReader) {
+    codeReader.reset();
+  }
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
   }
 }
 
