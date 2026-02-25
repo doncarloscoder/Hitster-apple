@@ -2,41 +2,74 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camera Test</title>
+<title>Hitster Apple</title>
 <style>
-  body { background:#000; text-align:center; color:white; }
-  video { width: 100%; max-width: 400px; margin-top:20px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #111;
+  color: white;
+  text-align: center;
+  padding: 40px;
+}
+button {
+  padding: 15px 25px;
+  font-size: 18px;
+  border-radius: 12px;
+  border: none;
+  background: #ff2d55;
+  color: white;
+}
+input {
+  padding: 10px;
+  margin-top: 15px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+}
 </style>
 </head>
 <body>
 
-<h2>Camera Debug</h2>
-<button onclick="startCamera()">Start Camera</button>
-<br>
-<video id="video" autoplay playsinline></video>
-<p id="status">Idle</p>
+<h1>🎵 Hitster Apple</h1>
+
+<p id="status">Redo</p>
+
+<input id="manualInput" placeholder="Kortnummer..." />
+<br><br>
+<button onclick="manualLookup()">Spela</button>
 
 <script>
-async function startCamera() {
-  const video = document.getElementById("video");
-  const status = document.getElementById("status");
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      }
-    });
+let mapping = {};
 
-    video.srcObject = stream;
-    status.innerText = "Camera running";
-  } catch (err) {
-    status.innerText = "Camera failed: " + err.message;
-    console.error(err);
+fetch("mapping.json")
+  .then(r => r.json())
+  .then(data => {
+    mapping = data;
+    checkUrl();
+  });
+
+function getCardFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("card");
+}
+
+function checkUrl() {
+  const card = getCardFromUrl();
+  if (card && mapping[card]) {
+    window.location.href = mapping[card];
   }
 }
+
+function manualLookup() {
+  const card = document.getElementById("manualInput").value.trim();
+  if (mapping[card]) {
+    window.location.href = mapping[card];
+  } else {
+    alert("Kortet finns inte.");
+  }
+}
+
 </script>
 
 </body>
