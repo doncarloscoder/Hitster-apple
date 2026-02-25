@@ -1847,7 +1847,8 @@
         }
 
         // 4. Redirect
-        window.location.href = url;
+        let appUrl = url.replace("https://", "music://");
+        window.location.href = appUrl;
 
       } catch (err) {
         log("Fel: " + err.message, "error");
