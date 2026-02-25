@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hitster Apple</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
+
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -14,43 +15,59 @@
       color: white;
     }
 
-    h1 {
-      margin-bottom: 20px;
-    }
+    h1 { margin-bottom: 20px; }
 
     #reader {
       width: 100%;
-      max-width: 400px;
+      max-width: 350px;
       margin: auto;
+      margin-top: 20px;
     }
 
     button {
-      padding: 15px 25px;
+      padding: 14px 22px;
       font-size: 18px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: none;
       background: #ff2d55;
       color: white;
       margin-top: 20px;
     }
 
+    input {
+      padding: 10px;
+      margin-top: 15px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+      width: 200px;
+    }
+
     .status {
       margin-top: 15px;
       opacity: 0.8;
+      min-height: 24px;
     }
   </style>
 </head>
+
 <body>
 
-  <h1>🎵 Hitster Apple</h1>
+<h1>🎵 Hitster Apple</h1>
 
-  <div id="reader"></div>
+<button onclick="startScanner()">Starta scanning</button>
 
-  <div class="status" id="status">
-    Skanna ett kort
-  </div>
+<div id="reader"></div>
 
-  <script src="app.js"></script>
+<div class="status" id="status">
+  Tryck på Starta scanning
+</div>
+
+<input id="manualInput" placeholder="Kortnummer..." />
+<br>
+<button onclick="manualLookup()">Spela manuellt</button>
+
+<script src="app.js"></script>
 
 </body>
 </html>
