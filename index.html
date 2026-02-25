@@ -1,161 +1,227 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hitster Player</title>
+  <meta charset="UTF-8" />
+  <title>Hitster → Apple Music</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<script src="https://unpkg.com/@zxing/library@latest"></script>
+  <!-- QR-scanner bibliotek -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-<style>
-body {
-  background:#111;
-  color:white;
-  text-align:center;
-  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-  padding:20px;
-}
-video {
-  width:100%;
-  max-width:400px;
-  border-radius:12px;
-  margin-top:20px;
-}
-button {
-  padding:14px 24px;
-  font-size:18px;
-  border-radius:12px;
-  border:none;
-  background:#1DB954;
-  color:white;
-  margin-top:15px;
-}
-.status {
-  margin-top:15px;
-  min-height:24px;
-}
-</style>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #111;
+      color: #eee;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: 1rem auto;
+    }
+    #log {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      background: #222;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+    }
+    .status-ok { color: #7CFC00; }
+    .status-error { color: #ff6b6b; }
+    button {
+      padding: 0.6rem 1rem;
+      border-radius: 0.5rem;
+      border: none;
+      background: #444;
+      color: #eee;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    button:active {
+      background: #666;
+    }
+  </style>
 </head>
-
 <body>
+  <h1>Hitster → Apple Music</h1>
+  <p>Scanna ett Hitster-kort så öppnas låten i Apple Music (om möjligt).</p>
 
-<h1>🎵 Hitster Universal</h1>
+  <div id="reader"></div>
 
-<button onclick="startScanner()">Starta scanning</button>
+  <button id="restart-btn" style="display:none;">Scanna igen</button>
 
-<br>
-<video id="video" playsinline></video>
-<div class="status" id="status">Redo</div>
+  <div id="log"></div>
 
-<script>
+  <script>
+    // ==============================
+    // 1. Din Hitster-ID → Spotify-ID mappning
+    // ==============================
+    //
+    // Byt ut innehållet i spotifyMap mot din riktiga lista.
+    // Nyckeln = Hitster-ID (t.ex. "287"), värdet = Spotify track ID.
+    //
+    const spotifyMap = {
+      "287": "3vZO25GdYuqFrR1kzZADnp",
+      "571": "0KMGf0ebdR8aazf1PoHEdb"
+      // ... klistra in hela din JSON-lista här ...
+    };
 
-let mapping = {};
-let codeReader;
-let stream;
+    // ==============================
+    // 2. Hjälpfunktioner
+    // ==============================
 
-const video = document.getElementById('video');
-const statusEl = document.getElementById('status');
+    const logEl = document.getElementById("log");
+    const restartBtn = document.getElementById("restart-btn");
+    let html5QrCode = null;
 
-fetch("mapping.json")
-  .then(r => r.json())
-  .then(data => {
-    mapping = data;
-    console.log("Mapping laddad:", Object.keys(mapping).length, "låtar");
-  })
-  .catch(err => {
-    statusEl.innerText = "Kunde inte ladda mapping.json";
-    console.error(err);
-  });
+    function log(message, type = "info") {
+      const prefix =
+        type === "error" ? "❌ " :
+        type === "ok" ? "✅ " :
+        "ℹ️ ";
+      const cssClass =
+        type === "error" ? "status-error" :
+        type === "ok" ? "status-ok" :
+        "";
+      logEl.innerHTML = `<span class="${cssClass}">${prefix}${message}</span>`;
+      console.log(message);
+    }
 
-// Extrahera songId direkt om det redan är /songs/{id}
-function extractSongIdFromUrl(url) {
-  const match = url.match(/songs\/(\d+)/);
-  return match ? match[1] : null;
-}
-
-// Följ redirect för gamla URL-format
-async function resolveSongId(originalUrl) {
-  try {
-    const response = await fetch(originalUrl, {
-      method: "GET",
-      redirect: "follow"
-    });
-
-    const finalUrl = response.url;
-    const songId = extractSongIdFromUrl(finalUrl);
-
-    return songId;
-  } catch (err) {
-    console.error("Redirect-fel:", err);
-    return null;
-  }
-}
-
-async function startScanner() {
-  statusEl.innerText = "Startar kamera...";
-
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+    function extractHitsterIdFromUrl(url) {
+      try {
+        const u = new URL(url);
+        const parts = u.pathname.split("/").filter(Boolean);
+        // Ex: /resources/songs/287 → ["resources","songs","287"]
+        return parts[parts.length - 1];
+      } catch (e) {
+        return null;
       }
-    });
+    }
 
-    video.srcObject = stream;
+    async function getAppleMusicUrlFromSpotifyId(spotifyId) {
+      const apiUrl =
+        `https://api.song.link/v1-alpha.1/links?platform=spotify&type=song&id=${encodeURIComponent(spotifyId)}`;
 
-    codeReader = new ZXing.BrowserQRCodeReader();
+      const res = await fetch(apiUrl);
+      if (!res.ok) {
+        throw new Error("Odesli svarade inte OK: " + res.status);
+      }
 
-    statusEl.innerText = "Kamera aktiv – håll kortet stilla";
+      const data = await res.json();
+      const links = data.linksByPlatform || {};
 
-    codeReader.decodeFromVideoElementContinuously(video, async (result, err) => {
-      if (result) {
-        const scannedUrl = result.getText();
-        stopScanner();
+      if (links.appleMusic && links.appleMusic.url) {
+        return { url: links.appleMusic.url, platform: "appleMusic" };
+      } else if (links.spotify && links.spotify.url) {
+        // fallback om Apple saknas
+        return { url: links.spotify.url, platform: "spotify" };
+      } else {
+        throw new Error("Hittade varken Apple Music eller Spotify-länk i svaret.");
+      }
+    }
 
-        statusEl.innerText = "Bearbetar...";
+    function stopScanner() {
+      if (html5QrCode) {
+        html5QrCode.stop().catch(() => {});
+      }
+    }
 
-        let songId = extractSongIdFromUrl(scannedUrl);
+    function showRestartButton() {
+      restartBtn.style.display = "inline-block";
+    }
 
-        if (!songId) {
-          // Gamla format → följ redirect
-          songId = await resolveSongId(scannedUrl);
+    function hideRestartButton() {
+      restartBtn.style.display = "none";
+    }
+
+    // ==============================
+    // 3. QR-scanner setup
+    // ==============================
+
+    async function startScanner() {
+      hideRestartButton();
+      log("Startar kamera…");
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+      };
+
+      html5QrCode = new Html5Qrcode("reader");
+
+      html5QrCode
+        .start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess,
+          (errorMessage) => {
+            // Ignorera kontinuerliga decode-fel
+          }
+        )
+        .then(() => {
+          log("Kamera igång. Rikta mot Hitster-kortet.");
+        })
+        .catch((err) => {
+          log("Kunde inte starta kameran: " + err, "error");
+        });
+    }
+
+    async function onScanSuccess(decodedText, decodedResult) {
+      stopScanner();
+      log(`Läste QR: ${decodedText}`);
+
+      try {
+        // 1. Extrahera Hitster-ID
+        const hitsterId = extractHitsterIdFromUrl(decodedText);
+        if (!hitsterId) {
+          throw new Error("Kunde inte tolka Hitster-ID från URL.");
         }
+        log(`Hitster-ID: ${hitsterId}`);
 
-        if (!songId) {
-          statusEl.innerText = "Kunde inte hitta songId.";
-          return;
+        // 2. Slå upp Spotify-ID
+        const spotifyId = spotifyMap[hitsterId];
+        if (!spotifyId) {
+          throw new Error(`Ingen Spotify-ID hittades för Hitster-ID ${hitsterId}.`);
         }
+        log(`Spotify-ID: ${spotifyId}`);
 
-        statusEl.innerText = "Song ID: " + songId;
+        // 3. Hämta Apple Music-länk via Odesli
+        log("Slår upp Apple Music-länk via Odesli…");
+        const { url, platform } = await getAppleMusicUrlFromSpotifyId(spotifyId);
 
-        if (mapping[songId]) {
-          const spotifyId = mapping[songId];
-          const spotifyUrl = "https://open.spotify.com/track/" + spotifyId;
-          window.location.href = spotifyUrl;
+        if (platform === "appleMusic") {
+          log(`Öppnar i Apple Music…`, "ok");
         } else {
-          statusEl.innerText = "SongId saknas i mapping.";
+          log(`Hittade ingen Apple Music-länk, öppnar Spotify istället.`, "ok");
         }
+
+        // 4. Redirect
+        window.location.href = url;
+
+      } catch (err) {
+        log("Fel: " + err.message, "error");
+        showRestartButton();
       }
+    }
+
+    // ==============================
+    // 4. Init
+    // ==============================
+
+    restartBtn.addEventListener("click", () => {
+      log("");
+      startScanner();
     });
 
-  } catch (err) {
-    statusEl.innerText = "Kamera-fel: " + err.message;
-    console.error(err);
-  }
-}
-
-function stopScanner() {
-  if (codeReader) {
-    codeReader.reset();
-  }
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-  }
-}
-
-</script>
-
+    // Starta direkt
+    startScanner();
+  </script>
 </body>
 </html>
