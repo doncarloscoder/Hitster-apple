@@ -39,7 +39,7 @@ button {
 
 <body>
 
-<h1>🎵 Hitster</h1>
+<h1>🎵 Hitster Universal</h1>
 
 <button onclick="startScanner()">Starta scanning</button>
 
@@ -56,22 +56,39 @@ let stream;
 const video = document.getElementById('video');
 const statusEl = document.getElementById('status');
 
-// Ladda mapping.json
 fetch("mapping.json")
   .then(r => r.json())
   .then(data => {
     mapping = data;
-    console.log("Mapping laddad:", Object.keys(mapping).length, "kort");
+    console.log("Mapping laddad:", Object.keys(mapping).length, "låtar");
   })
   .catch(err => {
     statusEl.innerText = "Kunde inte ladda mapping.json";
     console.error(err);
   });
 
-// Extrahera kortnummer från Hitster URL
-function extractCardNumber(text) {
-  const matches = text.match(/\d+/g);
-  return matches ? parseInt(matches[matches.length - 1], 10).toString() : null;
+// Extrahera songId direkt om det redan är /songs/{id}
+function extractSongIdFromUrl(url) {
+  const match = url.match(/songs\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+// Följ redirect för gamla URL-format
+async function resolveSongId(originalUrl) {
+  try {
+    const response = await fetch(originalUrl, {
+      method: "GET",
+      redirect: "follow"
+    });
+
+    const finalUrl = response.url;
+    const songId = extractSongIdFromUrl(finalUrl);
+
+    return songId;
+  } catch (err) {
+    console.error("Redirect-fel:", err);
+    return null;
+  }
 }
 
 async function startScanner() {
@@ -92,23 +109,33 @@ async function startScanner() {
 
     statusEl.innerText = "Kamera aktiv – håll kortet stilla";
 
-    codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
+    codeReader.decodeFromVideoElementContinuously(video, async (result, err) => {
       if (result) {
-        const text = result.getText();
-        const cardNumber = extractCardNumber(text);
-
-        if (!cardNumber) return;
-
-        statusEl.innerText = "Kort: " + cardNumber;
-
+        const scannedUrl = result.getText();
         stopScanner();
 
-        if (mapping[cardNumber]) {
-          const spotifyId = mapping[cardNumber];
+        statusEl.innerText = "Bearbetar...";
+
+        let songId = extractSongIdFromUrl(scannedUrl);
+
+        if (!songId) {
+          // Gamla format → följ redirect
+          songId = await resolveSongId(scannedUrl);
+        }
+
+        if (!songId) {
+          statusEl.innerText = "Kunde inte hitta songId.";
+          return;
+        }
+
+        statusEl.innerText = "Song ID: " + songId;
+
+        if (mapping[songId]) {
+          const spotifyId = mapping[songId];
           const spotifyUrl = "https://open.spotify.com/track/" + spotifyId;
           window.location.href = spotifyUrl;
         } else {
-          statusEl.innerText = "Kort saknas i mapping.";
+          statusEl.innerText = "SongId saknas i mapping.";
         }
       }
     });
