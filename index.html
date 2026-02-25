@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hitster Apple</title>
+<title>Hitster Player</title>
+
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 
 <style>
@@ -25,7 +26,7 @@ button {
   font-size:18px;
   border-radius:12px;
   border:none;
-  background:#ff2d55;
+  background:#1DB954;
   color:white;
   margin-top:15px;
 }
@@ -38,7 +39,7 @@ button {
 
 <body>
 
-<h1>🎵 Hitster Apple</h1>
+<h1>🎵 Hitster</h1>
 
 <button onclick="startScanner()">Starta scanning</button>
 
@@ -55,10 +56,19 @@ let stream;
 const video = document.getElementById('video');
 const statusEl = document.getElementById('status');
 
+// Ladda mapping.json
 fetch("mapping.json")
   .then(r => r.json())
-  .then(data => mapping = data);
+  .then(data => {
+    mapping = data;
+    console.log("Mapping laddad:", Object.keys(mapping).length, "kort");
+  })
+  .catch(err => {
+    statusEl.innerText = "Kunde inte ladda mapping.json";
+    console.error(err);
+  });
 
+// Extrahera kortnummer från Hitster URL
 function extractCardNumber(text) {
   const matches = text.match(/\d+/g);
   return matches ? parseInt(matches[matches.length - 1], 10).toString() : null;
@@ -72,8 +82,7 @@ async function startScanner() {
       video: {
         facingMode: { ideal: "environment" },
         width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        focusMode: "continuous"
+        height: { ideal: 1080 }
       }
     });
 
@@ -95,7 +104,9 @@ async function startScanner() {
         stopScanner();
 
         if (mapping[cardNumber]) {
-          window.location.href = mapping[cardNumber];
+          const spotifyId = mapping[cardNumber];
+          const spotifyUrl = "https://open.spotify.com/track/" + spotifyId;
+          window.location.href = spotifyUrl;
         } else {
           statusEl.innerText = "Kort saknas i mapping.";
         }
