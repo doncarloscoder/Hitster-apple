@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hitster Apple</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     body {
@@ -15,12 +14,10 @@
       color: white;
     }
 
-    h1 { margin-bottom: 20px; }
-
-    #reader {
+    video {
       width: 100%;
       max-width: 350px;
-      margin: auto;
+      border-radius: 12px;
       margin-top: 20px;
     }
 
@@ -45,19 +42,18 @@
 
     .status {
       margin-top: 15px;
-      opacity: 0.8;
       min-height: 24px;
     }
   </style>
 </head>
-
 <body>
 
 <h1>🎵 Hitster Apple</h1>
 
 <button onclick="startScanner()">Starta scanning</button>
 
-<div id="reader"></div>
+<br>
+<video id="video"></video>
 
 <div class="status" id="status">
   Tryck på Starta scanning
@@ -67,7 +63,67 @@
 <br>
 <button onclick="manualLookup()">Spela manuellt</button>
 
-<script src="app.js"></script>
+<script type="module">
+
+import QrScanner from "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js";
+
+let mapping = {};
+let scanner;
+
+const statusEl = document.getElementById("status");
+const video = document.getElementById("video");
+
+fetch("mapping.json")
+  .then(r => r.json())
+  .then(data => mapping = data);
+
+function extractCardNumber(text) {
+  const matches = text.match(/\d+/g);
+  return matches ? parseInt(matches[matches.length - 1], 10).toString() : null;
+}
+
+window.startScanner = async function () {
+  statusEl.innerText = "Startar kamera...";
+
+  scanner = new QrScanner(
+    video,
+    result => {
+      statusEl.innerText = "QR hittad!";
+      scanner.stop();
+
+      const cardNumber = extractCardNumber(result.data);
+
+      if (!cardNumber) {
+        statusEl.innerText = "Kunde inte tolka kort.";
+        return;
+      }
+
+      statusEl.innerText = "Kortnummer: " + cardNumber;
+
+      if (mapping[cardNumber]) {
+        window.location.href = mapping[cardNumber];
+      } else {
+        statusEl.innerText = "Kort saknas i mapping.";
+      }
+    },
+    { returnDetailedScanResult: true }
+  );
+
+  await scanner.start();
+};
+
+window.manualLookup = function () {
+  const value = document.getElementById("manualInput").value.trim();
+  const cardNumber = parseInt(value, 10).toString();
+
+  if (mapping[cardNumber]) {
+    window.location.href = mapping[cardNumber];
+  } else {
+    alert("Kortet finns inte.");
+  }
+};
+
+</script>
 
 </body>
 </html>
