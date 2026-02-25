@@ -1,128 +1,42 @@
 <!DOCTYPE html>
-<html lang="sv">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hitster Apple</title>
-
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      text-align: center;
-      padding: 20px;
-      background: #111;
-      color: white;
-    }
-
-    video {
-      width: 100%;
-      max-width: 350px;
-      border-radius: 12px;
-      margin-top: 20px;
-    }
-
-    button {
-      padding: 14px 22px;
-      font-size: 18px;
-      border-radius: 12px;
-      border: none;
-      background: #ff2d55;
-      color: white;
-      margin-top: 20px;
-    }
-
-    input {
-      padding: 10px;
-      margin-top: 15px;
-      border-radius: 8px;
-      border: none;
-      font-size: 16px;
-      width: 200px;
-    }
-
-    .status {
-      margin-top: 15px;
-      min-height: 24px;
-    }
-  </style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Test</title>
+<style>
+  body { background:#000; text-align:center; color:white; }
+  video { width: 100%; max-width: 400px; margin-top:20px; }
+</style>
 </head>
 <body>
 
-<h1>🎵 Hitster Apple</h1>
-
-<button onclick="startScanner()">Starta scanning</button>
-
+<h2>Camera Debug</h2>
+<button onclick="startCamera()">Start Camera</button>
 <br>
-<video id="video"></video>
+<video id="video" autoplay playsinline></video>
+<p id="status">Idle</p>
 
-<div class="status" id="status">
-  Tryck på Starta scanning
-</div>
+<script>
+async function startCamera() {
+  const video = document.getElementById("video");
+  const status = document.getElementById("status");
 
-<input id="manualInput" placeholder="Kortnummer..." />
-<br>
-<button onclick="manualLookup()">Spela manuellt</button>
-
-<script type="module">
-
-import QrScanner from "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js";
-
-let mapping = {};
-let scanner;
-
-const statusEl = document.getElementById("status");
-const video = document.getElementById("video");
-
-fetch("mapping.json")
-  .then(r => r.json())
-  .then(data => mapping = data);
-
-function extractCardNumber(text) {
-  const matches = text.match(/\d+/g);
-  return matches ? parseInt(matches[matches.length - 1], 10).toString() : null;
-}
-
-window.startScanner = async function () {
-  statusEl.innerText = "Startar kamera...";
-
-  scanner = new QrScanner(
-    video,
-    result => {
-      statusEl.innerText = "QR hittad!";
-      scanner.stop();
-
-      const cardNumber = extractCardNumber(result.data);
-
-      if (!cardNumber) {
-        statusEl.innerText = "Kunde inte tolka kort.";
-        return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
       }
+    });
 
-      statusEl.innerText = "Kortnummer: " + cardNumber;
-
-      if (mapping[cardNumber]) {
-        window.location.href = mapping[cardNumber];
-      } else {
-        statusEl.innerText = "Kort saknas i mapping.";
-      }
-    },
-    { returnDetailedScanResult: true }
-  );
-
-  await scanner.start();
-};
-
-window.manualLookup = function () {
-  const value = document.getElementById("manualInput").value.trim();
-  const cardNumber = parseInt(value, 10).toString();
-
-  if (mapping[cardNumber]) {
-    window.location.href = mapping[cardNumber];
-  } else {
-    alert("Kortet finns inte.");
+    video.srcObject = stream;
+    status.innerText = "Camera running";
+  } catch (err) {
+    status.innerText = "Camera failed: " + err.message;
+    console.error(err);
   }
-};
-
+}
 </script>
 
 </body>
