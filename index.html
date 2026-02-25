@@ -1750,8 +1750,8 @@
     }
 
     async function getAppleMusicUrlFromSpotifyId(spotifyId) {
-      const apiUrl =
-        `https://api.song.link/v1-alpha.1/links?platform=spotify&type=song&id=${encodeURIComponent(spotifyId)}`;
+      const apiUrl = `https://vargbacken.se/proxy.php?id=${encodeURIComponent(spotifyId)}`;
+
 
       const res = await fetch(apiUrl);
       if (!res.ok) {
